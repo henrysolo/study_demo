@@ -2,8 +2,28 @@ import socket
 import os
 import struct
 from ctypes import *
+import threading
+import time
+from netaddr import IPNetwork, IPAddress
 
+# host to listen on
 HOST = socket.gethostbyname(socket.gethostname())
+
+# subnet to target
+subnet = "192.168.0.0/24"
+
+# magic string out the UDP datagrams
+magic_message = "PYTHONRULES!"
+
+
+def udp_sender(subnet, magic_message):
+    time.sleep(5)
+    sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    for ip in IPNetwork(subnet):
+        try:
+            sender.sendto(magic_message, ("%s" % ip, 65212))
+        except:
+            pass
 
 
 class IP(Structure):
@@ -63,6 +83,9 @@ sniffer.bind((HOST, 0))
 sniffer.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
 if os.name == "nt":
     sniffer.ioctl(socket.SIO_RCVALL, socket.RCVALL_ON)
+# start sending packets
+t = threading.Thread(target=udp_sender, args=(subnet, magic_message))
+t.start()
 try:
     while True:
         # read in a packet
@@ -79,6 +102,13 @@ try:
             # create our ICMP structure
             icmp_header = ICMP(buf)
             print "ICMP -> Type:%d Code:%d" % (icmp_header.type, icmp_header.code)
+            # now check for the type 3 and code
+            if icmp_header.code == 3 and icmp_header.type == 3:
+                # make sure host is in our target subnet
+                if IPAddress(ip_header.src_address) in IPNetwork(subnet):
+                    # make sure it has our magic message
+                    if raw_buffer[len(raw_buffer) - len(magic_message):] == magic_message:
+                        print "Host Up:%s" % ip_header.src_address
 except KeyboardInterrupt:
     # if we use windows,turn off promiscuous mode
     if os.name == "nt":

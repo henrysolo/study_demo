@@ -26,7 +26,7 @@ class IP(Structure):
 
     def __init__(self, socket_buffer=None):
         # map protocol constansts to their names
-        self.protocol_map = {"1:": "ICMP", "6:": "TCP", "17": "UDP"}
+        self.protocol_map = {1: "ICMP", 6: "TCP", 17: "UDP"}
         # human readable IP addresses
         self.src_address = socket.inet_ntoa(struct.pack("@I", self.src))
         self.dst_address = socket.inet_ntoa(struct.pack("@I", self.dst))
